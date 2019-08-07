@@ -3,7 +3,7 @@
 backupDir="$HOME/Backup"
 backupName="pacman_packages"
 timeStamp=$(date +%Y-%m-%d_%H.%M.%S)
-maxBackups=2
+maxBackups=50
 
 existingBackups=$(ls -d $backupDir/* | grep $backupName)
 numBackups=$(echo $existingBackups | wc -w)
