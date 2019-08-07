@@ -1,0 +1,10 @@
+[Unit]
+Description=Local system resume actions
+After=suspend.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/systemctl restart amdgpu-fancontrol.service
+
+[Install]
+WantedBy=suspend.target
