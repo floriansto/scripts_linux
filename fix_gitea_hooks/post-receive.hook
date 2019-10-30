@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+"/app/gitea/gitea" hook --config='/data/gitea/conf/app.ini' post-receive
+
