@@ -3,9 +3,10 @@
 BACKUP_HOST="backup"
 BACKUP_USER="root"
 SSH_PORT="5176"
+DEVICE=$1
 
 # Start rsnapshot from backup server
-ssh -p $SSH_PORT $BACKUP_USER@$BACKUP_HOST '/root/rsnapshot/run_rsnapshot_no_cron.sh flo-desktop'
+ssh -p $SSH_PORT $BACKUP_USER@$BACKUP_HOST "/root/rsnapshot/run_rsnapshot_no_cron.sh $1"
 
 RET_VAL=$?
 # Check exit status
