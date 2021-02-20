@@ -4,9 +4,10 @@ BACKUP_HOST="backup"
 BACKUP_USER="root"
 SSH_PORT="5176"
 DEVICE=$1
+DBT="/root/data-backup-tool"
 
 # Start rsnapshot from backup server
-ssh -p $SSH_PORT $BACKUP_USER@$BACKUP_HOST "/root/rsnapshot/run_rsnapshot_no_cron.sh $1"
+ssh -p $SSH_PORT $BACKUP_USER@$BACKUP_HOST "python3 $DBT/src/main.py $DBT/config/$1.yaml -s -u $BACKUP_USER -h $1 -p $SSH_PORT"
 
 RET_VAL=$?
 # Check exit status
