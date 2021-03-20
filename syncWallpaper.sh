@@ -4,7 +4,7 @@ USER=$(whoami)
 SOURCE="${HOME}/Bilder/Wallpaper/"
 DEST="/mnt/data/$USER/Bilder/Wallpaper"
 
-SSH_PORT=5176
+SSH_PORT=$1
 HOST="nas"
 
 ISONLINE=$(ncat -z $HOST $SSH_PORT)

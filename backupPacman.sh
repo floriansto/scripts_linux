@@ -1,6 +1,6 @@
 #!/bin/bash
 
-backupDir="$HOME/Backup"
+backupDir="$HOME/.pacman_backup"
 backupName="pacman_packages"
 timeStamp=$(date +%Y-%m-%d_%H.%M.%S)
 maxBackups=50

@@ -2,7 +2,7 @@
 
 BACKUP_HOST="backup"
 BACKUP_USER="root"
-SSH_PORT="5176"
+SSH_PORT=$2
 DEVICE=$1
 DBT="/root/data-backup-tool"
 
