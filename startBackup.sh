@@ -1,6 +1,7 @@
-#!/usr/bin/sh
+#!/usr/bin/env bash
 
-ENV="./env"
+SCRIPTDIR=$(dirname $0)
+ENV="$SCRIPTDIR/./env"
 
 if [[ ! -e $ENV ]]; then
   echo "Env file at $ENV cannot be found!"
@@ -14,7 +15,7 @@ if [[ ! -e $ENV ]]; then
   exit 1
 fi
 
-source ./env
+source $ENV
 GOTIFY_CALL="$GOTIFY_URL/message?token=$GOTIFY_TOKEN"
 
 if [ -z ${GOTIFY_URL+x} ]; then echo "\$GOTIFY_URL is unset";fi
@@ -93,9 +94,12 @@ prune_exit=$?
 
 info "Compacting repository"
 
-borg compact
-
-compact_exit=$?
+compact_exit=0
+BORG_MINOR_VERSION=$(borg --version | cut -d '.' -f 2)
+if [ $BORG_MINOR_VERSION -gt 1 ]; then
+  borg compact
+  compact_exit=$?
+fi
 
 # use highest exit code as global exit code
 global_exit=$(( backup_exit > prune_exit ? backup_exit : prune_exit ))
