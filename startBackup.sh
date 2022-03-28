@@ -61,7 +61,7 @@ while [[ ! -z "$1" ]]; do
     shift
     shift
   elif [[ "$1" == "-e" || "$1" == "--exclude" ]]; then
-    EXCLUDE_STR="--exclude-from $2"
+    EXCLUDE_STR="--exclude-from $(pwd)/$2"
     echo $2
     shift
     shift
