@@ -1,0 +1,10 @@
+[Unit]
+Description=Loads btusb kernel module
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/scripts_linux/loadbtusb
+
+[Install]
+WantedBy=multi-user.target
