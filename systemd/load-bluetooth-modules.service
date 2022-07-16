@@ -4,7 +4,7 @@ After=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/opt/scripts_linux/loadbtusb
+ExecStart=/opt/scripts_linux/loadbtusb.sh
 
 [Install]
 WantedBy=multi-user.target
