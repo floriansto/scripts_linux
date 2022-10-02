@@ -8,6 +8,7 @@ function usage() {
   echo ""
   echo "Required arguments"
   echo " -n,--name   Name of the backup (usually the hostname)"
+  echo " -r,--repo   Path to the borg repository"
   echo ""
   echo "Optional arguments"
   echo " -e,--exclude  Path to the excludefile (optional):"
@@ -49,6 +50,7 @@ if [ ! -z ${EXCLUDE_FILE+x} ]; then
 fi
 
 name_provided=false
+repo_provided=false
 while [[ ! -z "$1" ]]; do
   echo "Begin loop with $1"
   if [[ "$1" == "-h" || "$1" == "--help" ]]; then
@@ -65,8 +67,13 @@ while [[ ! -z "$1" ]]; do
     echo $2
     shift
     shift
+  elif [[ "$1" == "-r" || "$1" == "--repo" ]]; then
+    REPO="$2"
+    repo_provided=true
+    shift
+    shift
   else
-    if [[ $name_provided == true ]]; then
+    if [[ $name_provided == true || $repo_provided == true ]]; then
       break
     fi
     usage
@@ -74,8 +81,20 @@ while [[ ! -z "$1" ]]; do
   fi
 done
 
+if [[ $name_provided == false ]]; then
+  echo "Please provide a backup name (ideally hostname)"
+  usage
+  exit 1
+fi
+
+if [[ $repo_provided == false ]]; then
+  echo "please provide the path to the borg repo"
+  usage
+  exit 1
+fi
+
 # Setting this, so the repo does not need to be given on the commandline:
-export BORG_REPO=ssh://root@backup:5176/mnt/backup/$HOSTNAME
+export BORG_REPO=$REPO
 
 # See the section "Passphrase notes" for more infos.
 export BORG_PASSPHRASE=''
@@ -106,7 +125,7 @@ while true; do
 
   backup_exit=$?
   if [ ${backup_exit} -ne 0 ]; then
-    info "Backup attempt $attempts failed... retry"
+    info "Backup attempt $attempts failed with code $backup_exit ... retry"
   fi
   attempts=$(( attempts+1 ))
   [[ backup_exit -ne 0 && attempts -lt 11 ]] || break
@@ -122,7 +141,7 @@ info "Pruning repository"
 
 borg prune                          \
     --list                          \
-    --prefix '{hostname}-'          \
+    --glob-archives '{hostname}-*'  \
     --show-rc                       \
     --keep-last     4               \
     --keep-hourly   8               \
