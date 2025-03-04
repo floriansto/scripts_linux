@@ -110,18 +110,20 @@ info "Starting backup $backup_name"
 # the machine this script is currently running on:
 attempts=1
 while true; do
-  borg create                         \
-      --verbose                       \
-      --filter AME                    \
-      --list                          \
-      --stats                         \
-      --show-rc                       \
-      --compression lz4               \
-      --exclude-caches                \
-      $EXCLUDE_STR                    \
-                                      \
-      ::"$backup_name"                \
-      $*                              \
+  borg_create=$(                        \
+    borg create                         \
+        --verbose                       \
+        --filter AME                    \
+        --list                          \
+        --stats                         \
+        --show-rc                       \
+        --compression lz4               \
+        --exclude-caches                \
+        $EXCLUDE_STR                    \
+                                        \
+        ::"$backup_name"                \
+        $*                              \
+  2>&1)
 
   backup_exit=$?
   if [ ${backup_exit} -ne 0 ]; then
@@ -139,15 +141,17 @@ info "Pruning repository"
 # limit prune's operation to this machine's archives and not apply to
 # other machines' archives also:
 
-borg prune                          \
-    --list                          \
-    --glob-archives '{hostname}-*'  \
-    --show-rc                       \
-    --keep-last     4               \
-    --keep-hourly   8               \
-    --keep-daily    7               \
-    --keep-weekly   4               \
-    --keep-monthly  12              \
+borg_prune=$(                         \
+  borg prune                          \
+      --list                          \
+      --glob-archives '{hostname}-*'  \
+      --show-rc                       \
+      --keep-last     4               \
+      --keep-hourly   8               \
+      --keep-daily    7               \
+      --keep-weekly   4               \
+      --keep-monthly  12              \
+2>&1)
 
 prune_exit=$?
 
@@ -158,12 +162,12 @@ info "Compacting repository"
 compact_exit=0
 BORG_MINOR_VERSION=$(borg --version | cut -d '.' -f 2)
 if [ $BORG_MINOR_VERSION -gt 1 ]; then
-  borg compact
+  borg_compact=$(borg compact 2>&1)
   compact_exit=$?
 fi
 
 info "Check last backup archive"
-borg check --archives-only --last 1
+borg_check=$(borg check --archives-only --last 1 2>&1)
 check_exit=$?
 
 # use highest exit code as global exit code
@@ -186,15 +190,32 @@ if [ $(command -v jq) ]; then
     SIZE="Size on disk: $DEDUP_SIZE"
 fi
 
-MESSAGE="Backup, Prune, and Compact finished $STATE"
+MESSAGE="Create, Prune, Compact and Check finished $STATE"
 info "$MESSAGE"
+
+if [ $backup_exit -ne 0 ]; then
+  borg_create=$(echo "\n\nBorg create error:\n$borg_create" | tr "\n" ",")
+fi
+if [ $prune_exit -ne 0 ]; then
+  borg_prune=$(echo "$error_message\n\nBorg prune error:\n$borg_prune" | tr "\n" ",")
+fi
+if [ $compact_exit -ne 0 ]; then
+  borg_compact=$(echo "$error_message\n\nBorg compact error:\n$borg_compact" | tr "\n" ",")
+fi
+if [ $check_exit -ne 0 ]; then
+  borg_check=$(echo "$error_message\n\nBorg check error:\n$borg_check" | tr "\n" ",")
+fi
+error_message=$borg_create$borg_prune$borg_compact$borg_check
 
 # Notify gotify when the backup was not successful
 if [ ${global_exit} -ne 0 ]; then
-    EXIT_CODES="Backup: $backup_exit, Prune: $prune_exit, Compact: $compact_exit, Check: $check_exit"
-    GOTIFY_MESSAGE=$(echo "Exit codes:\n$EXIT_CODES\n$SIZE" | sed 's/\\n/%0A/g' | sed 's/ /%20/g')
-    GOTIFY_TITLE=$(echo "$HOSTNAME finished $STATE" | sed 's/\\n/%0A/g' | sed 's/ /%20/g')
-    curl --silent --show-error -X POST "$GOTIFY_CALL&message=$GOTIFY_MESSAGE&title=$GOTIFY_TITLE" > /dev/null
+    EXIT_CODES="Create: $backup_exit, Prune: $prune_exit, Compact: $compact_exit, Check: $check_exit"
+    GOTIFY_MESSAGE="Repo: $REPO\nExit codes: $EXIT_CODES\n$SIZE$error_message"
+    GOTIFY_TITLE="borg create on $HOSTNAME finished $STATE"
+    curl --silent --show-error "$GOTIFY_CALL" \
+      -H  "accept: application/json" \
+      -H  "Content-Type: application/json" \
+      -d "{  \"message\": \"$GOTIFY_MESSAGE\", \"title\": \"$GOTIFY_TITLE\"}" > /dev/null
 fi
 
 exit ${global_exit}
