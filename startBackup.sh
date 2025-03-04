@@ -63,7 +63,7 @@ while [[ ! -z "$1" ]]; do
     shift
     shift
   elif [[ "$1" == "-e" || "$1" == "--exclude" ]]; then
-    EXCLUDE_STR="--exclude-from $(pwd)/$2"
+    EXCLUDE_STR="--exclude-from $2"
     echo $2
     shift
     shift
@@ -162,9 +162,14 @@ if [ $BORG_MINOR_VERSION -gt 1 ]; then
   compact_exit=$?
 fi
 
+info "Check last backup archive"
+borg check --archives-only --last 1
+check_exit=$?
+
 # use highest exit code as global exit code
 global_exit=$(( backup_exit > prune_exit ? backup_exit : prune_exit ))
 global_exit=$(( compact_exit > global_exit ? compact_exit : global_exit ))
+global_exit=$(( check_exit > global_exit ? check_exit : global_exit ))
 
 if [ ${global_exit} -eq 0 ]; then
     STATE="successfully"
@@ -186,7 +191,7 @@ info "$MESSAGE"
 
 # Notify gotify when the backup was not successful
 if [ ${global_exit} -ne 0 ]; then
-    EXIT_CODES="Backup: $backup_exit, Prune: $prune_exit, Compact: $compact_exit"
+    EXIT_CODES="Backup: $backup_exit, Prune: $prune_exit, Compact: $compact_exit, Check: $check_exit"
     GOTIFY_MESSAGE=$(echo "Exit codes:\n$EXIT_CODES\n$SIZE" | sed 's/\\n/%0A/g' | sed 's/ /%20/g')
     GOTIFY_TITLE=$(echo "$HOSTNAME finished $STATE" | sed 's/\\n/%0A/g' | sed 's/ /%20/g')
     curl --silent --show-error -X POST "$GOTIFY_CALL&message=$GOTIFY_MESSAGE&title=$GOTIFY_TITLE" > /dev/null
