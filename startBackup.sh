@@ -11,7 +11,9 @@ function usage() {
   echo " -r,--repo   Path to the borg repository"
   echo ""
   echo "Optional arguments"
-  echo " -e,--exclude  Path to the excludefile (optional):"
+  echo " -e,--exclude     Path to the excludefile (optional):"
+  echo " -p,--passphrase  Passphrase file containing the passphrase of your repo (optional):"
+  echo " -a,--alert       Always send a notification (optional):"
   echo ""
   echo "The name has to be the first argument and is required"
   echo "The paths are a space separated list of directories that you"
@@ -51,26 +53,32 @@ fi
 
 name_provided=false
 repo_provided=false
+alert=0
+password_file=""
 while [[ ! -z "$1" ]]; do
-  echo "Begin loop with $1"
   if [[ "$1" == "-h" || "$1" == "--help" ]]; then
     usage
     exit 0
   elif [[ "$1" == "-n" || "$1" == "--name" ]]; then
-    echo $1
     HOSTNAME="$2"
     name_provided=true
     shift
     shift
   elif [[ "$1" == "-e" || "$1" == "--exclude" ]]; then
     EXCLUDE_STR="--exclude-from $2"
-    echo $2
     shift
     shift
   elif [[ "$1" == "-r" || "$1" == "--repo" ]]; then
     REPO="$2"
     repo_provided=true
     shift
+    shift
+  elif [[ "$1" == "-p" || "$1" == "--passphrase" ]]; then
+    password_file=$2
+    shift
+    shift
+  elif [[ "$1" == "-a" || "$1" == "--alert" ]]; then
+    alert=1
     shift
   else
     if [[ $name_provided == true || $repo_provided == true ]]; then
@@ -97,7 +105,11 @@ fi
 export BORG_REPO=$REPO
 
 # See the section "Passphrase notes" for more infos.
-export BORG_PASSPHRASE=''
+if [[ $password_file != "" ]]; then
+    export BORG_PASSCOMMAND="/usr/bin/cat ${password_file}"
+else
+    export BORG_PASSPHRASE=""
+fi
 
 # some helpers and error handling:
 info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
@@ -193,22 +205,26 @@ fi
 MESSAGE="Create, Prune, Compact and Check finished $STATE"
 info "$MESSAGE"
 
+error_message=""
 if [ $backup_exit -ne 0 ]; then
   borg_create=$(echo "\n\nBorg create error:\n$borg_create" | tr "\n" ",")
+  error_message=$error_message$borg_create
 fi
 if [ $prune_exit -ne 0 ]; then
   borg_prune=$(echo "$error_message\n\nBorg prune error:\n$borg_prune" | tr "\n" ",")
+  error_message=$error_message$borg_prune
 fi
 if [ $compact_exit -ne 0 ]; then
   borg_compact=$(echo "$error_message\n\nBorg compact error:\n$borg_compact" | tr "\n" ",")
+  error_message=$error_message$borg_compact
 fi
 if [ $check_exit -ne 0 ]; then
   borg_check=$(echo "$error_message\n\nBorg check error:\n$borg_check" | tr "\n" ",")
+  error_message=$error_message$borg_check
 fi
-error_message=$borg_create$borg_prune$borg_compact$borg_check
 
 # Notify gotify when the backup was not successful
-if [ ${global_exit} -ne 0 ]; then
+if [[ ${global_exit} -ne 0 || ${alert} -eq 1 ]]; then
     EXIT_CODES="Create: $backup_exit, Prune: $prune_exit, Compact: $compact_exit, Check: $check_exit"
     GOTIFY_MESSAGE="Repo: $REPO\nExit codes: $EXIT_CODES\n$SIZE$error_message"
     GOTIFY_TITLE="borg create on $HOSTNAME finished $STATE"
