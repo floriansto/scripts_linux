@@ -11,7 +11,8 @@ function usage() {
   echo " -r,--repo   Path to the borg repository"
   echo ""
   echo "Optional arguments"
-  echo " -e,--exclude  Path to the excludefile (optional):"
+  echo " -e,--exclude     Path to the excludefile (optional):"
+  echo " -p,--passphrase  Passphrase file containing the passphrase of your repo (optional):"
   echo ""
   echo "The name has to be the first argument and is required"
   echo "The paths are a space separated list of directories that you"
@@ -50,6 +51,7 @@ if [ ! -z ${EXCLUDE_FILE+x} ]; then
 fi
 
 repo_provided=false
+password_file=""
 while [[ ! -z "$1" ]]; do
   if [[ "$1" == "-h" || "$1" == "--help" ]]; then
     usage
@@ -57,6 +59,10 @@ while [[ ! -z "$1" ]]; do
   elif [[ "$1" == "-r" || "$1" == "--repo" ]]; then
     REPO="$2"
     repo_provided=true
+    shift
+    shift
+  elif [[ "$1" == "-p" || "$1" == "--passphrase" ]]; then
+    password_file=$2
     shift
     shift
   else
@@ -78,7 +84,12 @@ fi
 export BORG_REPO=$REPO
 
 # See the section "Passphrase notes" for more infos.
-export BORG_PASSPHRASE=''
+if [[ $password_file != "" ]]; then
+    export BORG_PASSCOMMAND="/usr/bin/cat ${password_file}"
+else
+    export BORG_PASSPHRASE=""
+fi
+
 
 # some helpers and error handling:
 info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
