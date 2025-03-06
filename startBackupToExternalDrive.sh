@@ -1,11 +1,19 @@
 #!/bin/bash
 
+function notify() {
+  curl --silent --show-error "$1" \
+    -H  "accept: application/json" \
+    -H  "Content-Type: application/json" \
+    -d "{  \"message\": \"$3\", \"title\": \"$2\"}" > /dev/null
+}
+
 DEVBASE=$1
 DEVICE="/dev/${DEVBASE}"
 
 # See if this drive is already mounted
 MOUNT_POINT=$(/bin/mount | /bin/grep ${DEVICE} | /usr/bin/awk '{ print $3 }')
 SCRIPT_DIR="$( cd "$(dirname "$0")" ; pwd -P )"
+ENV="$SCRIPT_DIR/./env"
 
 if [[ -n ${MOUNT_POINT} ]]; then
     # Already mounted, exit
@@ -33,9 +41,18 @@ if [[ ${ID_FS_TYPE} == "vfat" ]]; then
     OPTS+=",users,gid=100,umask=000,shortname=mixed,utf8=1,flush"
 fi
 
-if ! /bin/mount -o ${OPTS} ${DEVICE} ${MOUNT_POINT}; then
+source $ENV
+GOTIFY_CALL="$GOTIFY_URL/message?token=$GOTIFY_TOKEN"
+
+mount_msg=$(/bin/mount -o ${OPTS} ${DEVICE} ${MOUNT_POINT} 2>&1)
+mount_state=$?
+
+if [[ $mount_state -ne 0 ]] ; then
     # Error during mount process: cleanup mountpoint
+    mount_msg=$(echo $mount_msg | tr "\n" ",")
     /bin/rmdir ${MOUNT_POINT}
+    echo "Mount ${DEVICE} failed"
+    notify $GOTIFY_CALL "$(hostname): Mount ${DEVICE} failed" "Exit code: $mount_state\nMessage: $mount_msg"
     exit 1
 fi
 
@@ -50,7 +67,17 @@ else
 fi
 
 if [[ -n ${MOUNT_POINT} ]]; then
-    /bin/umount -l ${DEVICE}
+    unmount_msg=$(/bin/umount -l ${DEVICE} 2>&1)
+    unmount_state=$?
+    if [[ $unmount_state -eq 0 ]]; then
+      notify $GOTIFY_CALL "$(hostname): Unmount ${DEVICE} succeeded!" "You can remove it now"
+      echo "Unmount ${DEVICE} succeeded"
+    else
+      unmount_msg=$(echo $unmount_msg | tr "\n" ",")
+      notify $GOTIFY_CALL "$(hostname): Unmount ${DEVICE} failed!" "Exit code: $unmount_state\nMessage: $unmount_msg"
+      echo "Unmount ${DEVICE} failed"
+    fi
+    success=$unmount_state
 fi
 
 exit $success
